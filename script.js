@@ -11,7 +11,6 @@ const account1 = {
   interestRate: 1.2, // %
   pin: 1111,
 };
-
 const account2 = {
   owner: "Kunal Mirgal",
   movements: [5000, 3400, -150, -790, -3210, -1000, 8500, -30],
