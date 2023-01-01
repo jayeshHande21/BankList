@@ -142,6 +142,8 @@ const updateUI = function (acc) {
   calcDisplaySummery(acc);
 };
 
+//Login User
+
 let currentAccount;
 
 btnLogin.addEventListener("click", function (e) {
