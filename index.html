@@ -10,6 +10,7 @@
       href="https://fonts.googleapis.com/css?family=Poppins:400,500,600&display=swap"
       rel="stylesheet"
     />
+    <script src="https://code.jquery.com/jquery-3.6.3.js" integrity="sha256-nQLuAZGRRcILA+6dMBOvcRh5Pe310sBpanc6+QBmyVM=" crossorigin="anonymous"></script>
 
     <link rel="stylesheet" href="style.css" />
     <title>Bankist</title>
@@ -24,13 +25,15 @@
           type="text"
           placeholder="user"
           class="login__input login__input--user"
+          name="username"
         />
         <!-- In practice, use type="password" -->
         <input
-          type="text"
+          type="password"
           placeholder="PIN"
-          maxlength="4"
+          maxlength="6"
           class="login__input login__input--pin"
+          name="pin"
         />
         <button class="login__btn">&rarr;</button>
       </form>

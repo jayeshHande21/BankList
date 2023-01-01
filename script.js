@@ -4,35 +4,8 @@
 /////////////////////////////////////////////////
 // BANKIST APP
 
-// Data
-const account1 = {
-  owner: "Jayesh Hande",
-  movements: [200, -450, -400, 3000, 650, 130, 70, -1300],
-  interestRate: 1.2, // %
-  pin: 1111,
-};
-const account2 = {
-  owner: "Kunal Mirgal",
-  movements: [5000, 3400, -150, -790, -3210, -1000, 8500, -30],
-  interestRate: 1.5,
-  pin: 2222,
-};
 
-const account3 = {
-  owner: "Akshad Jaiswal",
-  movements: [200, -200, 340, -300, -20, 50, 400, -460],
-  interestRate: 0.7,
-  pin: 3333,
-};
-
-const account4 = {
-  owner: "Srushti Deshmukh",
-  movements: [430, 1000, 700, 50, 90],
-  interestRate: 1,
-  pin: 4444,
-};
-
-const accounts = [account1, account2, account3, account4];
+const form = document.querySelector('.login');
 
 // Elements
 const labelWelcome = document.querySelector(".welcome");
@@ -69,6 +42,17 @@ const currencies = new Map([
   ["EUR", "Euro"],
   ["GBP", "Pound sterling"],
 ]);
+
+
+function getAccountObject(data) {
+  console.log(data);
+  let acc = JSON.parse(data);
+  if (!acc['movements']) {
+    return null;
+  }
+  acc['movements'] = JSON.parse(acc['movements']);
+  return acc;
+}
 
 // DISPLAY DEPOSITS AND WITHDRAWLS
 
@@ -119,30 +103,28 @@ const calcDisplaySummery = function (acc) {
 };
 
 // CREATE A USERNAME
-const createUsernames = function (accs) {
-  accs.forEach(function (acc) {
+const createUsername = function (acc) {
     acc.username = acc.owner
       .toLowerCase()
       .split(" ")
       .map((name) => name[0])
       .join("");
-  });
+  
 };
-createUsernames(accounts);
+// createUsernames(accounts);
 
-createUsernames(accounts);
+// createUsernames(accounts);
 
 const updateUI = function (acc) {
   displayMovements(acc.movements);
 
   //Display Balance
   calcDisplayBalance(acc);
+  // console.log(acc.balance);
 
   //Display summery
   calcDisplaySummery(acc);
 };
-
-//Login User
 
 let currentAccount;
 
@@ -150,32 +132,34 @@ btnLogin.addEventListener("click", function (e) {
   // Prevent form from submitting
   e.preventDefault();
 
-  // const allBalance = accounts
-  //   .map(acc => acc.movements)
-  //   .flat()
-  //   .reduce((acc, mov) => acc + mov, 0);
+  const body = {username:inputLoginUsername.value,pin:inputLoginPin.value}
 
-  // console.log(allBalance);
 
-  currentAccount = accounts.find(
-    (acc) => acc.username === inputLoginUsername.value
-  );
-  console.log(currentAccount);
+  $.ajax({
+    type: 'post',
+    url: 'backend/getuser.php',
+    data: body
+  }).done(function (res) {
+    // console.log("data");
+    currentAccount = getAccountObject(res);
 
-  if (currentAccount?.pin === Number(inputLoginPin.value)) {
-    // Display UI and message
-    labelWelcome.textContent = `Welcome back, ${
-      currentAccount.owner.split(" ")[0]
-    }`;
-    containerApp.style.opacity = 100;
+    if (currentAccount['owner'] && currentAccount['pin']==inputLoginPin.value) {
+      // Display UI and message
+      labelWelcome.textContent = `Welcome back, ${
+        currentAccount.owner.split(" ")[0]
+      }`;
+      containerApp.style.opacity = 100;
+  
+      // Clear input fields
+      inputLoginUsername.value = inputLoginPin.value = "";
+      inputLoginPin.blur();
+  
+      //Display Movements
+      updateUI(currentAccount);
+    }
+    
+  });
 
-    // Clear input fields
-    inputLoginUsername.value = inputLoginPin.value = "";
-    inputLoginPin.blur();
-
-    //Display Movements
-    updateUI(currentAccount);
-  }
 });
 
 //Transfer Amount to other Account
@@ -183,29 +167,44 @@ btnTransfer.addEventListener("click", (e) => {
   e.preventDefault();
 
   const amount = Number(inputTransferAmount.value);
+  $.ajax({
+    type: 'post',
+    url: 'backend/getuser.php',
+    data: {username: inputTransferTo.value}
+  }).done((res) => {
+    const receiverAcc = getAccountObject(res);
+    if (
+      amount &&
+      receiverAcc['owner'] &&
+      currentAccount.balance >= amount &&
+      receiverAcc.username !== currentAccount.username
+    ) {
+      // console.log(currentAccount);
+      // console.log(receiverAcc);
+  
+      currentAccount.movements.push(-amount);
+      receiverAcc.movements.push(amount);
+      $.ajax({
+        type: 'post',
+        url: 'backend/updateMovements.php',
+        data: { acc: currentAccount, val: -amount }
+      })
+        .done(() => {
+          $.ajax({
+            type: 'post',
+            url: 'backend/updateMovements.php',
+            data: { acc: receiverAcc, val: amount }
+          })
+            .done(() => {
+            
+            updateUI(currentAccount);
+          })
+          
+        }
+      )
 
-  const receiverAcc = accounts.find(
-    (acc) => acc.username === inputTransferTo.value
-  );
-
-  inputTransferTo.value = inputTransferAmount.value = " ";
-
-  if (
-    amount &&
-    receiverAcc &&
-    currentAccount.balance >= amount &&
-    receiverAcc.username !== currentAccount.username
-  ) {
-    console.log(currentAccount);
-    console.log(receiverAcc);
-
-    currentAccount.movements.push(-amount);
-    receiverAcc.movements.push(amount);
-
-    updateUI(currentAccount);
-  }
-
-  console.log(amount, receiverAcc);
+    }
+ })
 });
 
 //To Add LOAN
@@ -218,9 +217,17 @@ btnLoan.addEventListener("click", (e) => {
     amount > 0 &&
     currentAccount.movements.some((mov) => mov >= amount * 0.1)
   ) {
+
     currentAccount.movements.push(amount);
-    //Update UI
+    $.ajax({
+      type: 'post',
+      url: 'backend/updateMovements.php',
+      data: { acc: currentAccount, val: amount }
+    }).done(() => {
+      
     updateUI(currentAccount);
+    })
+    //Update UI
   }
 
   inputLoanAmount.value = "";
@@ -230,17 +237,27 @@ btnLoan.addEventListener("click", (e) => {
 btnClose.addEventListener("click", function (e) {
   e.preventDefault();
 
+  console.log(currentAccount.pin)
+  console.log(currentAccount.username)
+  console.log(inputClosePin.value)
+  console.log(inputCloseUsername.value)
   if (
     inputCloseUsername.value === currentAccount.username &&
-    Number(inputClosePin.value) === currentAccount.pin
+    inputClosePin.value === currentAccount.pin
   ) {
-    const index = accounts.findIndex(
-      (acc) => acc.username === currentAccount.username
-    );
-    accounts.splice(index, 1);
-    containerApp.style.opacity = 0;
+    $.ajax({
+      type: 'post',
+      url: 'backend/deleteuser.php',
+      data: {username: currentAccount.username}
+    }).done((res) => {
+      let data = JSON.parse(res);
+      // console.log(data);
+      if (data.status == 200) { 
+        containerApp.style.opacity = 0;
+      }
+    })
   }
-  inputCloseUsername.value = inputClosePin.value === " ";
+  inputCloseUsername.value = inputClosePin.value = "";
 });
 let sorted = false;
 
@@ -252,38 +269,6 @@ btnSort.addEventListener("click", function (e) {
   sorted = !sorted;
 });
 
-
-/////////////////////////////////////////////////
-
-// <?php
-// $firstName = $_POST['firstName'];
-// $lastName = $_POST['lastName'];
-// $motherName = $_POST['motherName'];
-// $fatherName = $_POST['fatherName'];
-// $address = $_POST['address'];
-// $gender  = $_POST['gender'];
-// $DOB = $_POST['DOB'];
-// $pincode = $_POST['pincode'];
-// $course  = $_POST[''];
-
-// $email = $_POST['email'];
-
-// $conn = mysqli_connect('localhost' , 'root','','connectbase');
-// echo "Connection Was sucessfull"
-// if($conn->connect_error){  
-//     die('Connection Failed :' .$conn->connect_error );
-// }else{
-//     $stmt = $conn->prepare("Insert into registration(firstName,lastName,motherName,fatherName,address,gender,DOB,pincode,course,email)
-//     values(?,?,?,?,?,?,?,?,?,?)");
-//     $stmt->bind_param("ssssssiiss" ,$firstName,$lastName,$motherName,$fatherName,$address,$gender,$DOB,$pincode,$course,$email);
-//     $stmt->execute();
-//     echo "Registration Successfully....";
-//     $stmt ->close();
-//     $conn ->close();
-    
-// }
-
-// ?>
 
 
    
